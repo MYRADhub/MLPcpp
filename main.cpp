@@ -1,3 +1,4 @@
+#include "activation.h"
 #include <Eigen/Dense>
 #include <iostream>
 #include <vector>
@@ -30,31 +31,6 @@ public:
 		return grad_input;
 	}
 };
-
-Eigen::VectorXd  relu(const Eigen::VectorXd& x) {
-	return x.cwiseMax(0.0);
-}
-
-Eigen::VectorXd relu_prime(const Eigen::VectorXd& x) {
-	return (x.array() > 0.0).cast<double>();
-}
-
-Eigen::VectorXd sigmoid(const Eigen::VectorXd& x) {
-	return 1.0 / (1.0 + (-x.array()).exp());
-}
-
-Eigen::VectorXd sigmoid_prime(const Eigen::VectorXd& x) {
-	Eigen::VectorXd s = sigmoid(x);
-	return s.array() * (1 - s.array());
-}
-
-Eigen::VectorXd tanh_fn(const Eigen::VectorXd& x) {
-	return x.array().tanh();
-}
-
-Eigen::VectorXd tanh_prime(const Eigen::VectorXd& x) {
-	return 1.0 - x.array().tanh().square();
-}
 
 class Linear : public Layer {
 private:
@@ -123,9 +99,9 @@ int main() {
 	MLP model;
 
 	model.add_layer(2, 6);
-	model.add_activation(relu, relu_prime);
+	model.add_activation(Activations::relu, Activations::relu_prime);
 	model.add_layer(6, 1);
-	model.add_activation(sigmoid, sigmoid_prime);
+	model.add_activation(Activations::sigmoid, Activations::sigmoid_prime);
 
 	// Training data (XOR problem)
 	std::vector<Eigen::VectorXd> inputs = {
