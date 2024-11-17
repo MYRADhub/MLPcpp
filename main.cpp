@@ -9,6 +9,53 @@ public:
 	virtual Eigen::VectorXd backward(const Eigen::VectorXd& grad_output, double learning_rate) = 0;
 };
 
+class Activation : public Layer {
+private:
+	Eigen::VectorXd input_cache;
+	std::function<Eigen::VectorXd(const Eigen::VectorXd&)> activation_fn;
+	std::function<Eigen::VectorXd(const Eigen::VectorXd&)> activation_prime_fn;
+
+public:
+	Activation(std::function<Eigen::VectorXd(const Eigen::VectorXd&)> fn,
+		std::function<Eigen::VectorXd(const Eigen::VectorXd&)> prime_fn)
+		: activation_fn(fn), activation_prime_fn(prime_fn) {}
+
+	Eigen::VectorXd forward(const Eigen::VectorXd& input) override {
+		input_cache = input;
+		return activation_fn(input);
+	}
+
+	Eigen::VectorXd backward(const Eigen::VectorXd& grad_output, double learning_rate = 0.0) override {
+		Eigen::VectorXd grad_input = grad_output.array() * activation_prime_fn(input_cache).array();
+		return grad_input;
+	}
+};
+
+Eigen::VectorXd  relu(const Eigen::VectorXd& x) {
+	return x.cwiseMax(0.0);
+}
+
+Eigen::VectorXd relu_prime(const Eigen::VectorXd& x) {
+	return (x.array() > 0.0).cast<double>();
+}
+
+Eigen::VectorXd sigmoid(const Eigen::VectorXd& x) {
+	return 1.0 / (1.0 + (-x.array()).exp());
+}
+
+Eigen::VectorXd sigmoid_prime(const Eigen::VectorXd& x) {
+	Eigen::VectorXd s = sigmoid(x);
+	return s.array() * (1 - s.array());
+}
+
+Eigen::VectorXd tanh_fn(const Eigen::VectorXd& x) {
+	return x.array().tanh();
+}
+
+Eigen::VectorXd tanh_prime(const Eigen::VectorXd& x) {
+	return 1.0 - x.array().tanh().square();
+}
+
 class Linear : public Layer {
 private:
 	Eigen::MatrixXd weights;
@@ -44,11 +91,16 @@ public:
 
 class MLP {
 private:
-	std::vector<std::shared_ptr<Linear>> layers;
+	std::vector<std::shared_ptr<Layer>> layers;
 
 public:
 	void add_layer(int input_size, int output_size) {
 		layers.push_back(std::make_shared<Linear>(input_size, output_size));
+	}
+
+	void add_activation(std::function<Eigen::VectorXd(const Eigen::VectorXd&)> activation_fn,
+		std::function<Eigen::VectorXd(const Eigen::VectorXd&)> activation_prime_fn) {
+		layers.push_back(std::make_shared<Activation>(activation_fn, activation_prime_fn));
 	}
 
 	Eigen::VectorXd forward(const Eigen::VectorXd& input) {
@@ -69,10 +121,13 @@ public:
 
 int main() {
 	MLP model;
-	model.add_layer(2, 3);
-	model.add_layer(3, 1);
 
-	// Training data (OR problem)
+	model.add_layer(2, 6);
+	model.add_activation(relu, relu_prime);
+	model.add_layer(6, 1);
+	model.add_activation(sigmoid, sigmoid_prime);
+
+	// Training data (XOR problem)
 	std::vector<Eigen::VectorXd> inputs = {
 		(Eigen::VectorXd(2) << 0, 0).finished(),
 		(Eigen::VectorXd(2) << 0, 1).finished(),
@@ -84,12 +139,12 @@ int main() {
 		(Eigen::VectorXd(1) << 0).finished(),
 		(Eigen::VectorXd(1) << 1).finished(),
 		(Eigen::VectorXd(1) << 1).finished(),
-		(Eigen::VectorXd(1) << 1).finished(),
+		(Eigen::VectorXd(1) << 0).finished(),
 	};
 
 	// Training hyperparameters
 	int epochs = 10000;
-	double learning_rate = 1e-3;
+	double learning_rate = 1e-2;
 	std::cout << "Starting training\n";
 	// Training loop
 	for (int epoch = 0; epoch < epochs; epoch++) {
