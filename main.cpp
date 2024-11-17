@@ -1,18 +1,122 @@
 #include <Eigen/Dense>
 #include <iostream>
-using namespace Eigen;
-using namespace std;
+#include <vector>
+#include <memory>
+
+class Layer {
+public:
+	virtual Eigen::VectorXd forward(const Eigen::VectorXd& input) = 0;
+	virtual Eigen::VectorXd backward(const Eigen::VectorXd& grad_output, double learning_rate) = 0;
+};
+
+class Linear : public Layer {
+private:
+	Eigen::MatrixXd weights;
+	Eigen::VectorXd biases;
+	Eigen::MatrixXd input_cache; // Cache for backward pass
+
+public:
+	Linear(int input_size, int output_size)
+		: weights(Eigen::MatrixXd::Random(output_size, input_size) * std::sqrt(1.0 / input_size)),
+		biases(Eigen::VectorXd::Random(output_size)) {}
+
+	Eigen::VectorXd forward(const Eigen::VectorXd& input) override {
+		input_cache = input;
+		return (weights * input) + biases;
+	}
+
+	Eigen::VectorXd backward(const Eigen::VectorXd& grad_output, double learning_rate) override {
+		Eigen::VectorXd grad_input = weights.transpose() * grad_output;
+		Eigen::MatrixXd grad_weights = grad_output * input_cache.transpose();
+		Eigen::VectorXd grad_biases = grad_output;
+
+		// Gradient clipping
+		//grad_weights = grad_weights.cwiseMin(1.0).cwiseMax(-1.0);
+		//grad_biases = grad_biases.cwiseMin(1.0).cwiseMax(-1.0);
+
+		// Update weights and biases (SGD for simplicity, might add other optimizer support in future)
+		weights -= learning_rate * grad_weights;
+		biases -= learning_rate * grad_biases;
+
+		return grad_input;
+	}
+};
+
+class MLP {
+private:
+	std::vector<std::shared_ptr<Linear>> layers;
+
+public:
+	void add_layer(int input_size, int output_size) {
+		layers.push_back(std::make_shared<Linear>(input_size, output_size));
+	}
+
+	Eigen::VectorXd forward(const Eigen::VectorXd& input) {
+		Eigen::VectorXd output = input;
+		for (const auto& layer : layers) {
+			output = layer->forward(output);
+		}
+		return output;
+	}
+
+	void backward(const Eigen::VectorXd& grad_output, double learning_rate = 0.01) {
+		Eigen::VectorXd grad = grad_output;
+		for (auto it = layers.rbegin(); it != layers.rend(); it++) {
+			grad = (*it)->backward(grad, learning_rate);
+		}
+	}
+};
 
 int main() {
-	// Dynamic matrix - resizable
-	MatrixXd d;
+	MLP model;
+	model.add_layer(2, 3);
+	model.add_layer(3, 1);
 
-	// Fixed sizes matrix
-	Matrix3d f;
+	// Training data (OR problem)
+	std::vector<Eigen::VectorXd> inputs = {
+		(Eigen::VectorXd(2) << 0, 0).finished(),
+		(Eigen::VectorXd(2) << 0, 1).finished(),
+		(Eigen::VectorXd(2) << 1, 0).finished(),
+		(Eigen::VectorXd(2) << 1, 1).finished(),
+	};
 
-	
+	std::vector<Eigen::VectorXd> targets = {
+		(Eigen::VectorXd(1) << 0).finished(),
+		(Eigen::VectorXd(1) << 1).finished(),
+		(Eigen::VectorXd(1) << 1).finished(),
+		(Eigen::VectorXd(1) << 1).finished(),
+	};
 
-	d = MatrixXd::Random(4,6);
+	// Training hyperparameters
+	int epochs = 10000;
+	double learning_rate = 1e-3;
+	std::cout << "Starting training\n";
+	// Training loop
+	for (int epoch = 0; epoch < epochs; epoch++) {
+		double total_loss = 0;
 
-	cout << d << endl;
+		for (size_t i = 0; i < inputs.size(); i++) {
+			Eigen::VectorXd prediction = model.forward(inputs[i]);
+
+			Eigen::VectorXd error = prediction - targets[i];
+			total_loss += error.squaredNorm();
+
+			model.backward(error, learning_rate);
+		}
+
+		if (epoch % 10 == 0) {
+			std::cout << "Epoch " << epoch << ", Loss: " << total_loss / inputs.size() << '\n';
+		}
+	}
+
+	// Test the trained model
+	std::cout << "\nTesting the MLP\n";
+	for (size_t i = 0; i < inputs.size(); i++) {
+		Eigen::VectorXd prediction = model.forward(inputs[i]);
+		std::cout << "Input: " << inputs[i].transpose()
+			<< ", Predicted: " << prediction.transpose()
+			<< ", Target: " << targets[i].transpose() << std::endl;
+	}
+
+	return 0;
 }
