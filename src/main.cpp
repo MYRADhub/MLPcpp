@@ -35,7 +35,7 @@ public:
 	}
 };
 
-int main() {
+int main(int argc, char **argv) {
 	MLP model;
 
 	model.add_layer(3, 6);
@@ -97,5 +97,5 @@ int main() {
 			<< ", Target: " << targets[i].transpose() << std::endl;
 	}
 
-	return 0;
+	std::cin.get();
 }

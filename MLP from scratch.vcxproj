@@ -140,11 +140,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="activation.h" />
-    <ClInclude Include="layer.h" />
+    <ClInclude Include="src\activation.h" />
+    <ClInclude Include="src\layer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="builds\MLP from scratch.exe" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
