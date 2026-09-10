@@ -2,6 +2,7 @@
 #include <Eigen/Dense>
 #include <vector>
 #include <cmath>
+#include <functional>
 
 namespace Layers {
 	class Layer {
