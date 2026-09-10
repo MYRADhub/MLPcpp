@@ -6,6 +6,8 @@
 namespace Layers {
 	class Layer {
 	public:
+		virtual ~Layer() = default;
+
 		virtual Eigen::VectorXd forward(const Eigen::VectorXd& input) = 0;
 		virtual Eigen::VectorXd backward(const Eigen::VectorXd& grad_output, double learning_rate) = 0;
 	};
